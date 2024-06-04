@@ -6,9 +6,13 @@ import base64
 from uuid import uuid4
 from typing import TypeVar
 
-from .auth import Auth
-from models.user import User
+# Adjusting the import path
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
 
+from api.v1.auth.auth import Auth  # Adjust the import according to your project structure
+from models.user import User
 
 class SessionAuth(Auth):
     """ Implement Session Authorization protocol methods
@@ -69,3 +73,4 @@ class SessionAuth(Auth):
             return False
         del self.user_id_by_session_id[session_cookie]
         return True
+
