@@ -1,57 +1,56 @@
 #!/usr/bin/env python3
-""" SessionExpAuth module
-"""
-
+""" Implementation that adds an experation date to session_id """
 from api.v1.auth.session_auth import SessionAuth
+from os import environ
 from datetime import datetime, timedelta
-from os import getenv
+from models.user import User
 
 
 class SessionExpAuth(SessionAuth):
-    """ SessionExpAuth class.
-    """
+    """ Extension of SessionAuth that handles experation of session_id """
 
     def __init__(self):
-        """ Constructor.
-        """
-        duration = getenv('SESSION_DURATION')
-        if duration:
-            try:
-                self.session_duration = int(duration)
-            except Exception:
-                self.session_duration = 0
-        else:
-            self.session_duration = 0
+        "Overload of Auth (auth.py) class init function"
+        duration_status = True
+        SESSION_DURATION = environ.get('SESSION_DURATION')
+        if SESSION_DURATION is None:
+            duration_status = False
+        try:
+            SESSION_DURATION = int(SESSION_DURATION)
+        except Exception:
+            duration_status = False
+        if duration_status is False:
+            SESSION_DURATION = 0
+
+        self.session_duration = SESSION_DURATION
 
     def create_session(self, user_id=None):
-        """ create_session.
         """
-        if user_id:
-            session_id = super().create_session(user_id)
-            if not session_id:
-                return
-            user_id = self.user_id_by_session_id.get(session_id)
-            if not user_id:
-                return
-            session_dict = {'user_id': user_id, 'created_at': datetime.now()}
-            self.user_id_by_session_id[session_id] = session_dict
-            return session_id
+        [summary] - Overload of SessionAuth(session_auth.py)
+        class method create_session
+        """
+        session_id = super().create_session(user_id)
+        if session_id is None:
+            return None
+        session_dictionary = {"user_id": user_id, "created_at": datetime.now()}
+        self.user_id_by_session_id[session_id] = session_dictionary
+        return session_id
 
     def user_id_for_session_id(self, session_id=None):
-        """ user_id_for_session_id.
-        """
-        if not session_id:
-            return
-        session_dict = self.user_id_by_session_id.get(session_id, None)
-        if session_dict:
-            user = session_dict.get('user_id', None)
-            if user:
-                sd = self.session_duration
-                if sd <= 0:
-                    return user
-                created_at = session_dict.get('created_at', None)
-                if not created_at:
-                    return
-                if datetime.now() > created_at + timedelta(seconds=sd):
-                    return
-                return user
+        """ Get a user_id from a session_id """
+        if session_id is None:
+            return None
+        if session_id not in self.user_id_by_session_id:
+            return None
+
+        session_dictionary = self.user_id_by_session_id.get(session_id)
+
+        if self.session_duration <= 0:
+            return session_dictionary.get('user_id')
+        if 'created_at' not in session_dictionary:
+            return None
+        time_difference = timedelta(seconds=self.session_duration) + \
+            session_dictionary['created_at']
+        if datetime.now() > time_difference:
+            return None
+        return session_dictionary.get('user_id')
